@@ -38,10 +38,10 @@ jobs:
     - checkout
     - setup_remote_docker
     - run: |
+        . .circleci/functions.sh
         tag=latest
-        docker build -t "$remote/$repo:$tag" .
-        docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
-        docker push "$remote/$repo:$tag"
+        docker_login "$remote"
+        docker_build "$tag"
 
   sync:
     environment:
@@ -52,30 +52,10 @@ jobs:
     - checkout
     - setup_remote_docker
     - run: |
+        . .circleci/functions.sh
+        docker_login "$remote"
         apk add -U curl grep coreutils
-
-        # tag:date pairs
-        upstream_pairs="$(
-          curl -sL https://registry.hub.docker.com/v2/repositories/library/telegraf/tags?page_size=100 |\
-            grep -oP '(name|last_updated).+?[,}]' |\
-            tr -d ' ",' |\
-            paste - - -d: |\
-            cut -d: -f2,4-
-        )"
-
-        today="$(date +%s)"
-        docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
-
-        for pair in $upstream_pairs; do
-            tag="$(echo "$pair" | cut -d: -f1)"
-            last="$(echo "$pair" | cut -d: -f2- | date -f- +%s)"
-            if [ "$last" -gt "$today" ]; then
-                printf "$tag "
-                docker build --build-arg "base=$tag" -t "$remote/$repo:$tag" . >/dev/null
-                docker push "$remote/$repo:$tag" >/dev/null
-                echo "✓"
-            fi
-        done
+        sync
 
   load:
     environment:
@@ -86,20 +66,7 @@ jobs:
     - checkout
     - setup_remote_docker
     - run: |
+        . .circleci/functions.sh
+        docker_login "$remote"
         apk add -U curl
-
-        upstream_tags="$(
-            curl -s https://registry.hub.docker.com/v1/repositories/telegraf/tags |\
-            tr -d ' "[]{,' |\
-            tr '}' '\n' |\
-            cut -d: -f3
-        )"
-
-        docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
-
-        for tag in $upstream_tags; do
-            printf "$tag "
-            docker build --build-arg "base=$tag" -t "$remote/$repo:$tag" . >/dev/null
-            docker push "$remote/$repo:$tag" >/dev/null
-            echo "✓"
-        done
+        load
