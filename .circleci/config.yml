@@ -1,0 +1,105 @@
+version: 2.1
+
+aliases:
+- &common_env
+  remote: quay.io
+  repo: qoqodev/telegraf
+
+workflows:
+  version: 2.1
+  build:
+    jobs:
+    - build
+  sync:
+    jobs:
+    - sync
+    triggers:
+    - schedule:
+        cron: "0 0 * * *"
+        filters:
+          branches:
+            only:
+            - master
+  load:
+    jobs:
+    - hold:
+        type: approval
+    - load:
+        requires:
+        - hold
+
+jobs:
+  build:
+    environment:
+      <<: *common_env
+    docker:
+    - image: docker:stable
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run: |
+        tag=latest
+        docker build -t "$remote/$repo:$tag" .
+        docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
+        docker push "$remote/$repo:$tag"
+
+  sync:
+    environment:
+      <<: *common_env
+    docker:
+    - image: docker:stable
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run: |
+        apk add -U curl grep coreutils
+
+        # tag:date pairs
+        upstream_pairs="$(
+          curl -sL https://registry.hub.docker.com/v2/repositories/library/telegraf/tags?page_size=100 |\
+            grep -oP '(name|last_updated).+?[,}]' |\
+            tr -d ' ",' |\
+            paste - - -d: |\
+            cut -d: -f2,4-
+        )"
+
+        today="$(date +%s)"
+        docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
+
+        for pair in $upstream_pairs; do
+            tag="$(echo "$pair" | cut -d: -f1)"
+            last="$(echo "$pair" | cut -d: -f2- | date -f- +%s)"
+            if [ "$last" -gt "$today" ]; then
+                printf "$tag "
+                docker build --build-arg "base=$tag" -t "$remote/$repo:$tag" . >/dev/null
+                docker push "$remote/$repo:$tag" >/dev/null
+                echo "✓"
+            fi
+        done
+
+  load:
+    environment:
+      <<: *common_env
+    docker:
+    - image: docker:stable
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run: |
+        apk add -U curl
+
+        upstream_tags="$(
+            curl -s https://registry.hub.docker.com/v1/repositories/telegraf/tags |\
+            tr -d ' "[]{,' |\
+            tr '}' '\n' |\
+            cut -d: -f3
+        )"
+
+        docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
+
+        for tag in $upstream_tags; do
+            printf "$tag "
+            docker build --build-arg "base=$tag" -t "$remote/$repo:$tag" . >/dev/null
+            docker push "$remote/$repo:$tag" >/dev/null
+            echo "✓"
+        done
