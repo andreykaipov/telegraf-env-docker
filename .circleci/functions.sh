@@ -34,9 +34,11 @@ docker_build() {
     tag="$1"; shift
     name="$remote/$repo:$tag"
 
-    spin &
-    pid="$!"
-    trap 'kill -9 $pid' INT TERM
+    if ! "${CI:=false}"; then
+        spin &
+        pid="$!"
+        trap 'kill -9 $pid' INT TERM
+    fi
 
     printf "%-40s %s" "$name" "building "
     docker build --build-arg "base=$tag" -t "$name" . >/dev/null
@@ -47,7 +49,9 @@ docker_build() {
     printf "✓"
 
     echo
-    kill -9 "$pid"
+    if ! "${CI:=false}"; then
+        kill -9 "$pid"
+    fi
 }
 
 load() {
