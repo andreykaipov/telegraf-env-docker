@@ -7,9 +7,12 @@ aliases:
 
 workflows:
   version: 2.1
-  build:
+  commit:
     jobs:
-    - build
+    - shellcheck
+    - build:
+        requires:
+        - shellcheck
   sync:
     jobs:
     - sync
@@ -29,6 +32,14 @@ workflows:
         - hold
 
 jobs:
+  shellcheck:
+    docker:
+    - image: koalaman/shellcheck-alpine
+    steps:
+    - checkout
+    - run: |
+        find . -name '*.sh' | xargs -tn1 shellcheck -s sh
+
   build:
     environment:
       <<: *common_env
@@ -54,7 +65,6 @@ jobs:
     - run: |
         . .circleci/functions.sh
         docker_login "$remote"
-        apk add -U curl grep coreutils
         sync
 
   load:
@@ -68,5 +78,4 @@ jobs:
     - run: |
         . .circleci/functions.sh
         docker_login "$remote"
-        apk add -U curl
         load
