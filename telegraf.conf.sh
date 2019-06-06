@@ -16,14 +16,14 @@ main() {
     	"agent.logfile=$(get_env agent.logfile "")" \
     	"agent.hostname=$(get_env agent.hostname "")" \
     	"agent.omit_hostname=$(get_env agent.omit_hostname false)" \
-    	$0
+    	"$0"
 
     set -eu
 
-    echo [global_tags]
+    echo '[global_tags]'
     get_table global_tags
 
-    echo [agent]
+    echo '[agent]'
     get_table agent
 
     get_array_of_tables "aggregators"
@@ -48,19 +48,21 @@ get_env() {
 
 indent() { sed 's/^/    /'; }
 
-get_table() {
-    local tablename="$1"; shift
-    local IFS=$'\n'
-    for var in $(env | grep -E "^$tablename[.]" | cut -c"$(echo "${tablename}." | wc -c)"-); do
-	local k="$(echo "$var" | cut -d= -f1)"
-	local v="$(echo "$var" | cut -d= -f2- | sed -e 's/^"//g' -e 's/"$//g')" # sanitize
+nl="$(printf '\nx')"; nl="${nl%x}"
 
-	local kv=""
-	if $(echo "$v" | grep -qE '^[0-9.]+$'); then
+get_table() {
+    tablename="$1"; shift
+    IFS="$nl"
+    for var in $(env | grep -E "^${tablename}[.]" | cut -c"$(echo "${tablename}." | wc -c)"-); do
+	k="$(echo "$var" | cut -d= -f1)"
+	v="$(echo "$var" | cut -d= -f2- | sed -e 's/^"//g' -e 's/"$//g')" # sanitize
+
+	kv=""
+	if echo "$v" | grep -qE '^[0-9.]+$'; then
 	    kv="$k = $v"
-	elif $(echo "$v" | grep -qE '^(false|true)$'); then
+	elif echo "$v" | grep -qE '^(false|true)$'; then
 	    kv="$k = $v"
-	elif $(echo "$v" | grep -qE '^\[.*\]$'); then
+	elif echo "$v" | grep -qE '^\[.*\]$'; then
 	    kv="$k = $v"
 	else
 	    kv="$k = \"$v\""
@@ -70,8 +72,8 @@ get_table() {
 }
 
 get_array_of_tables() {
-    local tablekind="$1"; shift
-    for kind in $(env | grep -E "^$tablekind[.]" | cut -d. -f1-2 | sort | uniq); do
+    tablekind="$1"; shift
+    for kind in $(env | grep -E "^${tablekind}[.]" | cut -d. -f1-2 | sort | uniq); do
 	echo "[[$kind]]"
         get_table "$kind"
     done

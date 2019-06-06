@@ -1,26 +1,29 @@
 #!/bin/sh
 set -eu
 
-: ${remote?:"Define a remote, e.g. quay.io"}
-: ${repo?:"Define a repo, e.g qoqodev/telegraf"}
+: "${remote?:"Define a remote, e.g. quay.io"}"
+: "${repo?:"Define a repo, e.g qoqodev/telegraf"}"
 
 is_alpine() {
     if [ -f /etc/os-release ]; then
         grep -qx ID=alpine /etc/os-release
+        return "$?"
     fi
     return 1
 }
 
 docker_login() {
     remote="$1"; shift
-    docker login -u $DOCKER_USER -p $DOCKER_PASS "$remote"
+    docker login -u "$DOCKER_USER" -p "$DOCKER_PASS" "$remote"
 }
+
+nl="$(printf '\nx')"; nl="${nl%x}"
 
 spin() {
     spinner='-\|/'
     while :; do
-        for i in $(seq 0 3); do
-            printf "${spinner:$i:1}"
+        for i in $(seq 1 4); do
+            echo "$spinner" | cut -c"$i" | tr -d "$nl"
             printf '\b'
             sleep 0.1
         done
@@ -33,7 +36,7 @@ docker_build() {
 
     spin &
     pid="$!"
-    trap "kill -9 $pid" INT TERM KILL
+    trap 'kill -9 $pid' INT TERM
 
     printf "%-40s %s" "$name" "building "
     docker build --build-arg "base=$tag" -t "$name" . >/dev/null
