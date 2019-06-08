@@ -73,7 +73,7 @@ get_table() {
 
 get_array_of_tables() {
     tablekind="$1"; shift
-    for kind in $(env | grep -E "^${tablekind}[.]" | cut -d. -f1-2 | sort | uniq); do
+    for kind in $(env | grep -E "^${tablekind}[.]" | tr '=' . | cut -d. -f1-2 | sort | uniq); do
         echo "[[$kind]]"
         get_table "$kind"
     done
