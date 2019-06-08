@@ -1,3 +1,5 @@
-FROM telegraf:1.10-alpine
+ARG base=latest
+FROM telegraf:$base
 COPY *.sh /opt/
 ENTRYPOINT ["/opt/entrypoint.sh"]
+CMD ["telegraf"]
