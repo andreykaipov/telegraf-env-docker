@@ -66,7 +66,7 @@ load() {
         | grep -vE '^(0|1[.][0-7]([.-]|$))'
     )"
     for tag in $recent_tags; do
-        docker_build "$tag"
+        docker_build "$tag" || true
     done
 }
 
