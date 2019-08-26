@@ -3,14 +3,10 @@
 : "${config_path:=/etc/telegraf/telegraf.conf}"
 mkdir -p "$(dirname $config_path)"
 
-env2conf -prefix inputs,processors,aggregators,outputs -output toml > /opt/telegraf.conf
-
-if [ -s /opt/telegraf.conf ]; then
-    nonempty='yes'
-fi
+env2conf -prefix agent,inputs,processors,aggregators,outputs -output toml > $config_path
 
 if echo "$@" | grep -q ^-; then
-    set -- telegraf ${nonempty:+--config /opt/telegraf.conf} "$@"
+    set -- telegraf "$@"
 fi
 
 exec "$@"
