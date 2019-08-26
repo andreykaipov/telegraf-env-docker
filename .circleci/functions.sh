@@ -82,12 +82,12 @@ sync() {
         | cut -d: -f2,4-
     )"
 
-    today="$(date +%s)"
+    twodaysago="$(date +%s -d "2 days ago")"
 
     for pair in $upstream_pairs; do
         tag="$(echo "$pair" | cut -d: -f1)"
         last="$(echo "$pair" | cut -d: -f2- | date -f- +%s)"
-        if [ "$last" -gt "$today" ]; then
+        if [ "$last" -gt "$twodaysago" ]; then
             docker_build "$tag"
         fi
     done
